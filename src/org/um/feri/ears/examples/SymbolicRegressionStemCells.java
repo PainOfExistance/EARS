@@ -26,9 +26,7 @@ public class SymbolicRegressionStemCells {
                 AddNode.class,
                 SubNode.class,
                 MulNode.class,
-                DivNode.class,
-                SinNode.class,
-                CosNode.class
+                DivNode.class
         );
 
         List<Class<? extends Node>> baseTerminalNodeTypes = Arrays.asList(
