@@ -18,21 +18,39 @@ public class GAO extends NumberAlgorithm {
     // Custom random number generator state
     static class RandomState {
         long seed;
-        long current;
+        List<Double> randPool;
+        int randIndex;
 
         RandomState(long seed) {
             this.seed = seed;
-            this.current = seed;
+            this.randPool = new ArrayList<>();
+            this.randIndex = 0;
+            initializePool(seed);
         }
 
-        // Custom random number generator (same algorithm as MATLAB)
-        public double customRand() {
-            long a = 1664525L;
-            long c = 1013904223L;
+        private void initializePool(long seed) {
+            long current = seed;
+            long a = 1664525;
+            long c = 1013904223;
             long m = 1L << 32; // 2^32
 
-            current = (a * current + c) % m;
-            return (double) current / (double) m;
+            // Generate 20 random numbers for the pool
+            for (int i = 0; i < 10000; i++) {
+                current = (a * current + c) % m;
+                double randValue = (double) current / (double) m;
+                randPool.add((double)i / (double)10001);
+            }
+        }
+
+        // Custom random number generator that cycles through 20 numbers
+        public double customRand() {
+            // Get current number from pool
+            double r = randPool.get(randIndex);
+
+            // Move to next index (cycle back after 20)
+            randIndex = (randIndex + 1) % 10000;
+
+            return r;
         }
 
         public int customRandInt(int minVal, int maxVal) {
@@ -188,8 +206,8 @@ public class GAO extends NumberAlgorithm {
     ) {
         List<Double> newPosition = new ArrayList<>();
 
+        double I = /*RNG.nextInt(1, 2);//*/randomState.customRandInt(1, 2);
         for (int j = 0; j < current.getVariables().size(); j++) {
-            double I = /*RNG.nextInt(1, 2);//*/randomState.customRandInt(1, 2);
             double r = /*RNG.nextUniform();//*/randomState.customRand();
             double newValue = current.getValue(j) + r * (termiteMound.getValue(j) - I * current.getValue(j));
             newValue = Math.max(newValue, lb.get(j));
@@ -264,32 +282,40 @@ public class GAO extends NumberAlgorithm {
 %%% Modified with Custom Random Generator (Java-style) %%%
 
 function[Best_score,Best_pos,GAO_curve]=GAO(SearchAgents,Max_iterations,lowerbound,upperbound,dimension,fitness)
-    % Custom random generator functions
-    function randState = initRandomState(seed)
-        randState.seed = seed;
-        randState.current = seed;
-    end
+% Custom random generator functions with 20-number cycle
+rand_pool = zeros(1, 10000);
+rand_index = 1;
 
-    function [randState, r] = customRand(randState)
-        a = 1664525;
-        c = 1013904223;
-        m = 2^32;
+% Generate the 20-number pool
+rand_current = 42;  % Initial seed
+for i = 1:20
+    a = 1664525;
+    c = 1013904223;
+    m = 2^32;
 
-        % Use modulo operation to avoid overflow
-        randState.current = mod(a * randState.current + c, m);
-        r = double(randState.current) / double(m);
-    end
+    rand_current = mod(a * rand_current + c, m);
+    rand_pool(i) = double(i) / double(10001);
+end
 
-    function [randState, r] = customRandInt(randState, minVal, maxVal)
-        [randState, r_val] = customRand(randState);
-        r = minVal + floor(r_val * (maxVal - minVal + 1));
+function r = customRand()
+    % Use the current number from the pool
+    r = rand_pool(rand_index);
+
+    % Move to next number (cycle back to start after 20)
+    rand_index = rand_index + 1;
+    if rand_index > 10000
+        rand_index = 1;
     end
+end
+
+function r = customRandInt(minVal, maxVal)
+    r_val = customRand();
+    r = minVal + floor(r_val * (maxVal - minVal + 1));
+end
 
     lowerbound = ones(1,dimension).*(lowerbound);    % Lower limit for variables
     upperbound = ones(1,dimension).*(upperbound);    % Upper limit for variables
 
-    % Initialize custom random generator with fixed seed
-    randState = initRandomState(42);  % Fixed seed for reproducibility
 
     %% INITIALIZATION
     % Preallocate X matrix
@@ -298,8 +324,7 @@ function[Best_score,Best_pos,GAO_curve]=GAO(SearchAgents,Max_iterations,lowerbou
     for i=1:SearchAgents
         for j=1:dimension
             % Use custom random generator instead of MATLAB's rand()
-            [randState, rand_val] = customRand(randState);
-            X(i,j) = lowerbound(j) + rand_val * (upperbound(j) - lowerbound(j));
+            X(i,j) = lowerbound(j) + customRand() * (upperbound(j) - lowerbound(j));
         end
     end
 
@@ -343,17 +368,17 @@ function[Best_score,Best_pos,GAO_curve]=GAO(SearchAgents,Max_iterations,lowerbou
                 STM = xbest;
             else
                 % Use customRandInt instead of randperm
-                [randState, K_idx] = customRandInt(randState, 1, length(TM_location));
+                K_idx = customRandInt(1, length(TM_location));
                 K = TM_location(K_idx);
                 STM = X(K,:);
             end
 
             % Use custom random generator
-            [randState, rand_val1] = customRand(randState);
-            I = round(1 + rand_val1);
+            rand_val1 = customRandInt(1, 2);
+            I = round(rand_val1);
 
-            [randState, rand_val2] = customRand(randState);
-            X_new_P1 = X(i,:) + rand_val2 * (STM - I * X(i,:));  % Eq(5)
+            rand_val2 = customRand();
+            X_new_P1 = X(i,:) + customRand() * (STM - I * X(i,:));  % Eq(5)
 
             % Boundary control
             for d=1:dimension
@@ -375,8 +400,8 @@ function[Best_score,Best_pos,GAO_curve]=GAO(SearchAgents,Max_iterations,lowerbou
 
             %% Phase 2: Digging in termite mounds (exploitation phase)
             % Use custom random generator
-            [randState, r_val] = customRand(randState);
-            X_new_P2 = X(i,:) + (1 - 2 * r_val) * (upperbound - lowerbound) / t;  % Eq(7)
+            r_val5 = customRand();
+            X_new_P2 = X(i,:) + (1 - 2 * customRand()) * (upperbound - lowerbound) / t;  % Eq(7)
 
             % Boundary control for Phase 2
             for d=1:dimension
