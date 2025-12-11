@@ -93,13 +93,18 @@ public class GAO extends NumberAlgorithm {
         }
 
         for (int iteration = 1; iteration <= maxIterations; iteration++) {
-            /*System.out.println("------------");
-            for(int k=0;k<population.size();k++) {
+            if(iteration == 100) {
+                System.out.println("Iteration: " + iteration + " Best fitness: " + bestSolution.getEval());
+                System.exit(0);
+            }
+            System.out.println("------------");
+            System.out.println("Iteration: " + iteration);
+            for(int k=0;k<5;k++) {
                 System.out.println(Arrays.toString(population.get(k).getVariables().toArray()));
             }
             System.out.println("------------");
             System.out.println();
-            System.out.println();*/
+            System.out.println();
 
             if (task.isStopCriterion()) {
                 break;
@@ -173,7 +178,7 @@ public class GAO extends NumberAlgorithm {
             return bestSolution;
         }
 
-        int randomIndex = (int) (RNG.nextUniform()/*randomState.customRand()*/ * betterSolutions.size());
+        int randomIndex = (int) (/*RNG.nextUniform()*/randomState.customRand() * betterSolutions.size());
         return betterSolutions.get(randomIndex);
     }
 
@@ -184,8 +189,8 @@ public class GAO extends NumberAlgorithm {
         List<Double> newPosition = new ArrayList<>();
 
         for (int j = 0; j < current.getVariables().size(); j++) {
-            double I = RNG.nextInt(1, 2);//randomState.customRandInt(1, 2);
-            double r = RNG.nextUniform();//randomState.customRand();
+            double I = /*RNG.nextInt(1, 2);//*/randomState.customRandInt(1, 2);
+            double r = /*RNG.nextUniform();//*/randomState.customRand();
             double newValue = current.getValue(j) + r * (termiteMound.getValue(j) - I * current.getValue(j));
             newValue = Math.max(newValue, lb.get(j));
             newValue = Math.min(newValue, ub.get(j));
@@ -202,7 +207,7 @@ public class GAO extends NumberAlgorithm {
         double t = iteration + 1;
 
         for (int j = 0; j < current.getVariables().size(); j++) {
-            double newValue = current.getValue(j) + (1 - 2 * RNG.nextUniform()/*randomState.customRand()*/) * (ub.get(j) - lb.get(j)) / t;
+            double newValue = current.getValue(j) + (1 - 2 * /*RNG.nextUniform()*/randomState.customRand()) * (ub.get(j) - lb.get(j)) / t;
             newValue = Math.max(newValue, lb.get(j) / t);
             newValue = Math.min(newValue, ub.get(j) / t);
             newPosition.add(newValue);
@@ -229,7 +234,8 @@ public class GAO extends NumberAlgorithm {
             if (task.isStopCriterion()) {
                 break;
             }
-            /*ArrayList<Double> initialPosition = new ArrayList<>();
+
+            ArrayList<Double> initialPosition = new ArrayList<>();
             for(int d = 0; d < dimension; d++) {
                 double val = this.randomState.customRand() * (upperBounds.get(d) - lowerBounds.get(d)) + lowerBounds.get(d);
                 initialPosition.add(val);
@@ -237,130 +243,212 @@ public class GAO extends NumberAlgorithm {
 
             NumberSolution<Double> newSol = new NumberSolution<>();
             newSol.setVariables(initialPosition);
+            newSol.setObjectives(task.generateRandomEvaluatedSolution().getObjectives());
             task.eval(newSol);
-            population.add(newSol);*/
+            population.add(newSol);
 
-            NumberSolution<Double> newSolution = task.generateRandomEvaluatedSolution();
-            population.add(newSolution);
+            /*NumberSolution<Double> newSolution = task.generateRandomEvaluatedSolution();
+            population.add(newSolution);*/
 
             // Initialize best solution
-            if (bestSolution == null || newSolution.getEval() < bestSolution.getEval()) {
-                bestSolution = new NumberSolution<>(newSolution);
+            if (bestSolution == null || newSol.getEval() < bestSolution.getEval()) {
+                bestSolution = new NumberSolution<>(newSol);
+                bestSolution.setObjectives(newSol.getObjectives());
             }
         }
     }
 }
 
 /*
-function[Best_score,Best_pos,GAO_curve]=GAO(SearchAgents,Max_iterations,lowerbound,upperbound,dimension,fitness)
-    % Initialize custom random generator
-    rng_state = initRandomState(12345);
+%%% Designed and Developed by Mohammad Dehghani %%%
+%%% Modified with Custom Random Generator (Java-style) %%%
 
-    lowerbound=ones(1,dimension).*(lowerbound);                              % Lower limit for variables
-    upperbound=ones(1,dimension).*(upperbound);                              % Upper limit for variables
+function[Best_score,Best_pos,GAO_curve]=GAO(SearchAgents,Max_iterations,lowerbound,upperbound,dimension,fitness)
+    % Custom random generator functions
+    function randState = initRandomState(seed)
+        randState.seed = seed;
+        randState.current = seed;
+    end
+
+    function [randState, r] = customRand(randState)
+        a = 1664525;
+        c = 1013904223;
+        m = 2^32;
+
+        % Use modulo operation to avoid overflow
+        randState.current = mod(a * randState.current + c, m);
+        r = double(randState.current) / double(m);
+    end
+
+    function [randState, r] = customRandInt(randState, minVal, maxVal)
+        [randState, r_val] = customRand(randState);
+        r = minVal + floor(r_val * (maxVal - minVal + 1));
+    end
+
+    lowerbound = ones(1,dimension).*(lowerbound);    % Lower limit for variables
+    upperbound = ones(1,dimension).*(upperbound);    % Upper limit for variables
+
+    % Initialize custom random generator with fixed seed
+    randState = initRandomState(42);  % Fixed seed for reproducibility
 
     %% INITIALIZATION
-    for i=1:dimension
-        X(i,:) = lowerbound(i) + customRand(rng_state).*(upperbound(i) - lowerbound(i));                          % Initial population
+    % Preallocate X matrix
+    X = zeros(SearchAgents, dimension);
+
+    for i=1:SearchAgents
+        for j=1:dimension
+            % Use custom random generator instead of MATLAB's rand()
+            [randState, rand_val] = customRand(randState);
+            X(i,j) = lowerbound(j) + rand_val * (upperbound(j) - lowerbound(j));
+        end
     end
+
+    % Initialize fitness array
+    fit = zeros(1, SearchAgents);
 
     for i =1:SearchAgents
-        L=X(i,:);
-        fit(i)=fitness(L);
+        L = X(i,:);
+        fit(i) = fitness(L);
     end
-    %%
 
-    for t=1:Max_iterations  % algorithm iteration
+    %% MAIN OPTIMIZATION LOOP
+    % Preallocate convergence curve
+    best_so_far = zeros(1, Max_iterations);
+    average = zeros(1, Max_iterations);
 
-        %%  update: BEST proposed solution
-        [Fbest , blocation]=min(fit);
+    for t=1:Max_iterations
+        fprintf('=== Iteration %d ===\n', t);
+
+        %% Update: BEST proposed solution
+        [Fbest, blocation] = min(fit);
 
         if t==1
-            xbest=X(blocation,:);                                           % Optimal location
-            fbest=Fbest;                                           % The optimization objective function
-        elseif Fbest<fbest
-            fbest=Fbest;
-            xbest=X(blocation,:);
+            xbest = X(blocation,:);      % Optimal location
+            fbest = Fbest;                % The optimization objective function
+        elseif Fbest < fbest
+            fbest = Fbest;
+            xbest = X(blocation,:);
         end
-        %%
-        %%
-        %disp(X)        % simple, human-readable
-        X               % no semicolon prints the variable with its name
 
-        for i=1:SearchAgents
-            %%
-                %% Phase 1: Attack on termite mounds (exploration phase)
-                TM_location=find(fit<fit(i));% based on Eq(4)
-                if size (TM_location,2)==0
-                    STM=xbest;
-                else
-                    % Replace randperm with custom random integer
-                    K = customRandInt(rng_state, 1, size(TM_location,2));
-                    STM=X(K,:);
+
+        %% Process each search agent
+        for i=1:5
+            fprintf('    Position: ');
+            fprintf('%6.4f ', X(i,:));
+            fprintf('\n');
+
+            %% Phase 1: Attack on termite mounds (exploration phase)
+            TM_location = find(fit < fit(i));  % based on Eq(4)
+            if isempty(TM_location)
+                STM = xbest;
+            else
+                % Use customRandInt instead of randperm
+                [randState, K_idx] = customRandInt(randState, 1, length(TM_location));
+                K = TM_location(K_idx);
+                STM = X(K,:);
+            end
+
+            % Use custom random generator
+            [randState, rand_val1] = customRand(randState);
+            I = round(1 + rand_val1);
+
+            [randState, rand_val2] = customRand(randState);
+            X_new_P1 = X(i,:) + rand_val2 * (STM - I * X(i,:));  % Eq(5)
+
+            % Boundary control
+            for d=1:dimension
+                if X_new_P1(d) < lowerbound(d)
+                    X_new_P1(d) = lowerbound(d);
+                elseif X_new_P1(d) > upperbound(d)
+                    X_new_P1(d) = upperbound(d);
                 end
-                I=round(1+customRand(rng_state));
-                X_new_P1=X( i,: ) + customRand(rng_state).* ( STM - I.*X( i,: ) ) ;%Eq(5)
-                X_new_P1 = max(X_new_P1,lowerbound);X_new_P1 = min(X_new_P1,upperbound);
+            end
 
-                % update position based on Eq (6)
-                L=X_new_P1;
-                fit_new_P1=fitness(L);
-                if fit_new_P1<fit(i)
-                    X(i,:) = X_new_P1;
-                    fit(i) = fit_new_P1;
+            % Update position based on Eq (6)
+            L = X_new_P1;
+            fit_new_P1 = fitness(L);
+
+            if fit_new_P1 < fit(i)
+                X(i,:) = X_new_P1;
+                fit(i) = fit_new_P1;
+            end
+
+            %% Phase 2: Digging in termite mounds (exploitation phase)
+            % Use custom random generator
+            [randState, r_val] = customRand(randState);
+            X_new_P2 = X(i,:) + (1 - 2 * r_val) * (upperbound - lowerbound) / t;  % Eq(7)
+
+            % Boundary control for Phase 2
+            for d=1:dimension
+                lowerbound_t = lowerbound(d)/t;
+                upperbound_t = upperbound(d)/t;
+
+                if X_new_P2(d) < lowerbound_t
+                    X_new_P2(d) = lowerbound_t;
+                elseif X_new_P2(d) > upperbound_t
+                    X_new_P2(d) = upperbound_t;
                 end
-                %% End Phase 1
+            end
 
-                %% Phase 2: Digging in termite mounds (exploitation phase)
-                X_new_P2=X(i,:)+ (1-2*customRand(rng_state)).*(upperbound-lowerbound)./t; % Eq(7)
-                X_new_P2= max(X_new_P2,lowerbound/t);X_new_P2 = min(X_new_P2,upperbound/t);
+            % Updating X_i using (8)
+            L = X_new_P2;
+            f_new = fitness(L);
 
-                % Updating X_i using (8)
-                L=X_new_P2;
-                f_new = fitness(L);
-                if f_new <= fit (i)
-                    X(i,:) = X_new_P2;
-                    fit (i)=f_new;
-                    if f_new<fbest
-                        xbest=X_new_P2;
-                        fbest=f_new;
-                    end
+            if f_new <= fit(i)
+                X(i,:) = X_new_P2;
+                fit(i) = f_new;
+
+                if f_new < fbest
+                    xbest = X_new_P2;
+                    fbest = f_new;
                 end
-                %%
+            else
+            end
+        end  % End agent loop
 
-            %%
+        best_so_far(t) = fbest;
+        average(t) = mean(fit);
 
-        end % for i=1:SearchAgents
-        %%
+        fprintf('\n');
 
-        best_so_far(t)=fbest;
-        average(t) = mean (fit);
+        %% Special handling for 100th iteration
+        if t == 20
+            fprintf('\n=========================================\n');
+            fprintf('!!! ITERATION 20 - SHOWING ALL AGENTS !!!\n');
+            fprintf('=========================================\n\n');
 
+            fprintf('All Agents at Iteration 20:\n');
+            for i=1:SearchAgents
+                fprintf('Agent %2d: Fitness = %6.4f, Position = ', i, fit(i));
+                fprintf('%6.4f ', X(i,:));
+                fprintf('\n');
+            end
+
+            fprintf('\nFitness Statistics:\n');
+            fprintf('Best Fitness: %6.4f\n', fbest);
+            fprintf('Worst Fitness: %6.4f\n', max(fit));
+            fprintf('Average Fitness: %6.4f\n', mean(fit));
+            fprintf('Std Dev: %6.4f\n', std(fit));
+
+            fprintf('\nBreaking execution...\n');
+            break;  % Break the loop at iteration 100
+        end
+
+    end  % End main loop
+
+    % Truncate the convergence curve if we broke early
+    if t < Max_iterations
+        best_so_far = best_so_far(1:t);
+        average = average(1:t);
     end
-    Best_score=fbest;
-    Best_pos=xbest;
-    GAO_curve=best_so_far;
+
+    % Assign final outputs
+    Best_score = fbest;
+    Best_pos = xbest;
+    GAO_curve = best_so_far;
 end
 
-% Custom random number generator functions
-function r = customRand(state)
-    % Linear Congruential Generator for reproducible random numbers
-    a = 1664525;
-    c = 1013904223;
-    m = 2^32;
-
-    state.current = mod(a * state.current + c, m);
-    r = double(state.current) / double(m);
-end
-
-function r_int = customRandInt(state, min_val, max_val)
-    % Generate random integer between min_val and max_val (inclusive)
-    r = customRand(state);
-    r_int = min_val + floor(r * (max_val - min_val + 1));
-end
-
-function state = initRandomState(seed)
-    % Initialize random state with given seed
-    state = struct('seed', seed, 'current', seed);
-end
+% Example call with sphere function
+fitness = @(x) sum(x.^2);
+[Best_score, Best_pos, GAO_curve] = GAO(30, 100, -100, 100, 5, fitness);
  */

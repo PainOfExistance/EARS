@@ -17,12 +17,11 @@ import org.um.feri.ears.benchmark.Benchmark;
 import org.um.feri.ears.benchmark.CEC2015Benchmark;
 import org.um.feri.ears.benchmark.CEC2017Benchmark;
 import org.um.feri.ears.benchmark.RPUOed30Benchmark;
-import org.um.feri.ears.problems.Problem;
-import org.um.feri.ears.problems.Solution;
-import org.um.feri.ears.problems.StopCriterionException;
-import org.um.feri.ears.problems.Task;
+import org.um.feri.ears.problems.*;
+import org.um.feri.ears.problems.unconstrained.Sphere;
 import org.um.feri.ears.problems.unconstrained.cec2015.CEC2015;
 import org.um.feri.ears.problems.unconstrained.cec2015.F1;
+import org.um.feri.ears.problems.unconstrained.cec2017.CEC2017;
 
 import java.util.ArrayList;
 
@@ -32,7 +31,7 @@ public class SOBenchmarkExample {
         Benchmark.printInfo = false; //prints one on one results
 
         //System.out.println("----- CEC2015 Benchmark -----");
-        ArrayList<NumberAlgorithm> algorithms = new ArrayList<NumberAlgorithm>();
+        //ArrayList<NumberAlgorithm> algorithms = new ArrayList<NumberAlgorithm>();
         //algorithms.add(new ABC());
         //algorithms.add(new GWO());
         //algorithms.add(new TLBO());
@@ -49,7 +48,7 @@ public class SOBenchmarkExample {
 //
         //System.out.println();
         //System.out.println();
-        System.out.println("----- CEC2017 Benchmark -----");
+        /*System.out.println("----- CEC2017 Benchmark -----");
 
         algorithms = new ArrayList<NumberAlgorithm>();
         algorithms.add(new PSO());
@@ -66,6 +65,14 @@ public class SOBenchmarkExample {
         cec2017Benchmark.addAlgorithms(algorithms);  // register the algorithms in the benchmark
 
         cec2017Benchmark.run(10); //start the tournament with 10 runs/repetitions
+        */
+
+        NumberAlgorithm alg = new GAO();
+        Problem p = new Sphere(5);
+
+        Task t = new Task(p, StopCriterion.ITERATIONS, 10000000, 10000000, 21, 1.0e-8);
+        alg.setTask(t);
+        alg.execute(t);
 
     }
 }
